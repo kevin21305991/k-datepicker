@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="./css/k-datepicker.css">
+  <style>
+    *,*::before,*::after{
+      box-sizing: border-box;
+    }
+    body{
+      margin: 0;
+      padding: 10vh 0;
+      background-color: #FAFAFA;
+    }
+    .container{
+      max-width: 500px;
+      width: 100%;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="k-datepicker-container my-datepicker">
+      <div class="daterange-selector">
+        <div class="datepicker-input date-start">
+          <input type="text" id="date-start" readonly>
+          <label for="date-start">Depart Date</label>
+        </div>
+        <div class="datepicker-input date-end">
+          <input type="text" id="date-end" readonly>
+          <label for="date-end">Return Date</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./js/k-datepicker/language.js"></script>
+  <script src="./js/k-datepicker/k-datepicker-dist.js"></script>
+  <script>
+    var datepicker = new KDatepicker('.my-datepicker', {
+      on: {
+        init(){
+          // 啟動時觸發
+          console.log('KDatepicker is initialize');
+        },
+        oneWayChange(checked){
+          // 單程/雙程切換觸發
+          var inputEnd = document.querySelector('.my-datepicker .date-end')
+          if(checked){
+            inputEnd.classList.add('disabled')
+          }
+          else{
+            inputEnd.classList.remove('disabled')
+          }
+        },
+        slideChange() {
+          // 切換月份時觸發
+          console.log('calendar slide change');
+        },
+        confirm(result){
+          // 點擊完成按鈕時觸發
+          if(result.length === 2){
+            console.log(`select ${result[0]} to ${result[1]}`);
+          }
+          else{
+            console.log(`select ${result[0]}`)
+          }
+        }
+      },
+      lang: 'en', // String 目前有三種語言 zh-TW, zh-CN, en
+      monthPerView: 2, // Number 欲顯示月份數量 目前僅有 1,2 兩種
+      inputStart: '.date-start', // selector String 起始日期按鈕的 class name
+      inputEnd: '.date-end', // selector String 結束日期按鈕的 class name
+    });
+  </script>
+</body>
+</html>
