@@ -273,7 +273,9 @@ class KDatepicker {
         endCell?.classList.remove('is-selected');
         inputEnd.querySelector('input').value = '';
         inputEnd.querySelector('input').classList.remove('is-selected');
-        selectRange.splice(-1, 1);
+        if (selectRange.length === 2) {
+          selectRange.splice(-1, 1);
+        }
         if (inputStart.querySelector('input').value !== '') {
           confirmBtn.classList.remove('disabled');
         }
