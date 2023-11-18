@@ -1,5 +1,6 @@
 import SHARED from './shared/shared';
 import { isElementExist, getAllElements, htmlStringToDOM, getTransformX } from './shared/utils.js';
+import '../hammer.min.js';
 
 /**
  * 日期格式化
@@ -11,6 +12,23 @@ function formatDate(date) {
   var month = String(date.getMonth() + 1).padStart(2, '0');
   var day = String(date.getDate()).padStart(2, '0');
   return year + '-' + month + '-' + day;
+}
+
+/**
+ * Debounce（去抖動）
+ * @param {function} func 欲防止重複執行的 function
+ * @param {number} delay 延遲執行的時間(毫秒)
+ * @returns
+ */
+function debounce(func, delay = 150) {
+  let timer = null;
+  return function (...args) {
+    let context = this;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      func.apply(context, args);
+    }, delay);
+  };
 }
 
 class KDatepicker {
@@ -33,6 +51,7 @@ class KDatepicker {
         inputStart: '.date-start',
         inputEnd: '.date-end',
         lang: 'zh-TW',
+        minDate: new Date(),
       },
       EVENTS: {
         init: null,
@@ -55,22 +74,22 @@ class KDatepicker {
   #init() {
     const kDatepicker = this;
     const { elements, options } = kDatepicker;
+    console.log(kDatepicker);
     elements.forEach(element => {
-      element.setAttribute('month-per-view', options.monthPerView);
+      element.setAttribute('month-per-view', window.innerWidth > 720 ? options.monthPerView : 1);
       element.setAttribute('view-date', formatDate(new Date()));
       element.classList.add('k-datepicker-initialize');
       kDatepicker.#createCalendar(element);
       kDatepicker.emit('init');
     });
   }
-  #createCalendar(datepickerContainer) {
+  #createSlides(perView) {
     const kDatepicker = this;
-    const { clear, oneWay, confirm, week } = kDatepickerLanguage[kDatepicker.options.lang];
-    const monthPerView = parseInt(datepickerContainer.getAttribute('month-per-view'));
-    function createSlides(perView) {
-      let slideHTML = '';
-      for (let i = 0; i < perView + 2; i++) {
-        slideHTML += `<div class="c-slide" style="transform: translate3d(0,0,0);">
+    let slideHTML = '';
+    const { week } = kDatepickerLanguage[kDatepicker.options.lang];
+    const createCounts = perView ? perView + 2 : 1;
+    for (let i = 0; i < createCounts; i++) {
+      slideHTML += `<div class="c-slide" style="transform: translate3d(0,0,0);">
         <div class="c-table">
           <ul class="c-weeks">
             <li>${week[0]}</li>
@@ -120,41 +139,47 @@ class KDatepicker {
           </ul>
         </div>
       </div>`;
-      }
-      return slideHTML;
     }
+    return slideHTML;
+  }
+  #createCalendar(datepickerContainer) {
+    const kDatepicker = this;
+    const { clear, oneWay, confirm } = kDatepickerLanguage[kDatepicker.options.lang];
+    const monthPerView = window.innerWidth > 720 ? kDatepicker.options.monthPerView : parseInt(datepickerContainer.getAttribute('month-per-view'));
     const calendarDomString = `<div class="calendar-popup">
-      <div class="c-container">
-        <div class="c-header">
-          <ul class="c-options">
-            <li class="option-item reset-btn">
-              <div class="icon"></div>
-              <div class="text">${clear}</div>
-            </li>
-            <li class="option-item one-way">
-              <input type="checkbox" name="" id="one-way">
-              <div class="fake-checkbox"></div>
-              <label for="one-way">${oneWay}</label>
-            </li>
-          </ul>
-        </div>
-        <div class="c-title">
-          <div class="item current-month"></div>
-          <div class="item next-month"></div>
-        </div>
-        <div class="c-body">
-          <div class="c-scroll-wrapper">
-            <div class="c-scroll-view">
-              ${createSlides(monthPerView)}
+      <div class="flex-box">
+        <div class="c-container">
+          <div class="c-header">
+            <ul class="c-options">
+              <li class="option-item reset-btn">
+                <div class="icon"></div>
+                <div class="text">${clear}</div>
+              </li>
+              <li class="option-item one-way">
+                <input type="checkbox" name="" id="one-way">
+                <div class="fake-checkbox"></div>
+                <label for="one-way">${oneWay}</label>
+              </li>
+            </ul>
+          </div>
+          <div class="c-title">
+            <div class="item current-month"></div>
+            <div class="item next-month"></div>
+          </div>
+          <div class="c-body">
+            <div class="c-scroll-wrapper">
+              <div class="c-scroll-view">
+                ${kDatepicker.#createSlides(monthPerView)}
+              </div>
+            </div>
+            <div class="c-navigation">
+              <div class="prev-btn"></div>
+              <div class="next-btn"></div>
             </div>
           </div>
-          <div class="c-navigation">
-            <div class="prev-btn"></div>
-            <div class="next-btn"></div>
+          <div class="c-footer">
+            <div class="confirm-btn disabled">${confirm}</div>
           </div>
-        </div>
-        <div class="c-footer">
-          <div class="confirm-btn disabled">${confirm}</div>
         </div>
       </div>
     </div>`;
@@ -215,7 +240,9 @@ class KDatepicker {
             const date = `${y}-${m}-${day}`;
             dayCells[d].setAttribute('date', date);
             dayCells[d].textContent = dayCount;
-            if (new Date(date) < new Date()) {
+            const minDate = kDatepicker.options.minDate;
+            const isSameDay = new Date(date).getFullYear() === minDate.getFullYear() && new Date(date).getMonth() === minDate.getMonth() && new Date(date).getDate() === minDate.getDate();
+            if (new Date(date) < minDate && !isSameDay) {
               dayCells[d].classList.add('disabled');
             }
             dayCount++;
@@ -226,7 +253,30 @@ class KDatepicker {
       }
     }
   }
+  #setPopupPosition(datepickerContainer) {
+    const calendarPopup = datepickerContainer.querySelector('.calendar-popup');
+    const calendarContainer = calendarPopup.querySelector('.c-container');
+    const calendarContainerWidth = calendarContainer.offsetWidth;
+    const leftSpace = datepickerContainer.getBoundingClientRect().left + datepickerContainer.offsetWidth;
+    const rightSpace = datepickerContainer.getBoundingClientRect().right;
+    const align = () => {
+      if (window.innerWidth <= 720) {
+        return 'full';
+      } else {
+        if (leftSpace >= calendarContainerWidth) {
+          return 'align-right';
+        } else if (rightSpace >= calendarContainerWidth && leftSpace < calendarContainerWidth) {
+          return 'align-left';
+        } else {
+          return 'full';
+        }
+      }
+    };
+    calendarPopup.classList.remove('align-left', 'align-right', 'full');
+    calendarPopup.classList.add(align());
+  }
   #calendarEventsHandler(datepickerContainer) {
+    let openTimeout;
     const kDatepicker = this;
     const inputStart = datepickerContainer.querySelector(kDatepicker.options.inputStart);
     const inputEnd = datepickerContainer.querySelector(kDatepicker.options.inputEnd);
@@ -235,13 +285,24 @@ class KDatepicker {
     const previousBtn = datepickerContainer.querySelector('.c-navigation .prev-btn');
     const nextBtn = datepickerContainer.querySelector('.c-navigation .next-btn');
     const confirmBtn = datepickerContainer.querySelector('.confirm-btn');
+    const scrollWrapper = datepickerContainer.querySelector('.c-scroll-wrapper');
     let clickable = true;
     let dateSelectCounts = 0;
     let selectRange = [];
     function inputClickHandler(e) {
       e.stopPropagation();
-      const calendarPopup = this.closest(kDatepicker.selector).querySelector('.calendar-popup');
+      const calendarPopup = datepickerContainer.querySelector('.calendar-popup');
       calendarPopup.style.display = 'block';
+      kDatepicker.#setPopupPosition(datepickerContainer);
+      if (dateSelectCounts === 0) {
+        inputStart.classList.add('selecting');
+      } else if (dateSelectCounts === 1) {
+        inputEnd.classList.add('selecting');
+      }
+      if (openTimeout) clearTimeout(openTimeout);
+      openTimeout = setTimeout(() => {
+        calendarPopup.classList.add('show');
+      }, 100);
     }
 
     /**
@@ -256,8 +317,7 @@ class KDatepicker {
       confirmBtn.classList.add('disabled');
       selectRange = [];
       dayCells.forEach(cell => {
-        cell.classList.remove('is-selected');
-        cell.classList.remove('in-range');
+        cell.classList.remove('is-selected', 'in-range');
       });
     }
 
@@ -280,9 +340,13 @@ class KDatepicker {
           confirmBtn.classList.remove('disabled');
         }
         dateSelectCounts = 0;
+        inputStart.classList.add('selecting');
+        inputEnd.classList.remove('selecting');
       } else {
         if (inputStart.querySelector('input').value !== '') {
           dateSelectCounts = 1;
+          inputStart.classList.remove('selecting');
+          inputEnd.classList.add('selecting');
         }
         if (inputEnd.querySelector('input').value === '') {
           confirmBtn.classList.add('disabled');
@@ -298,6 +362,7 @@ class KDatepicker {
      */
     function slideChange(direction) {
       if (!clickable) return;
+      const monthPerView = parseInt(datepickerContainer.getAttribute('month-per-view'));
       const scrollView = datepickerContainer.querySelector('.c-scroll-view');
       const allSlide = datepickerContainer.querySelectorAll('.c-slide');
       let changeTimeout;
@@ -306,7 +371,7 @@ class KDatepicker {
       switch (direction) {
         case 'prev':
           scrollView.style.cssText = `
-            transform: translate3d(calc(${getTransformX(scrollView)}px + ${100 / kDatepicker.options.monthPerView}%),0,0);
+            transform: translate3d(calc(${getTransformX(scrollView)}px + ${100 / monthPerView}%),0,0);
             transition: transform 200ms ease-out 0s;
           `;
           allSlide.forEach(slide => {
@@ -320,7 +385,7 @@ class KDatepicker {
           break;
         case 'next':
           scrollView.style.cssText = `
-            transform: translate3d(calc(${getTransformX(scrollView)}px - ${100 / kDatepicker.options.monthPerView}%),0,0);
+            transform: translate3d(calc(${getTransformX(scrollView)}px - ${100 / monthPerView}%),0,0);
             transition: transform 200ms ease-out 0s;
           `;
           allSlide.forEach(slide => {
@@ -338,8 +403,7 @@ class KDatepicker {
       if (selectRange.length === 1) {
         dayCells.forEach(cell => {
           const date = new Date(cell.getAttribute('date'));
-          cell.classList.remove('is-selected');
-          cell.classList.remove('in-range');
+          cell.classList.remove('is-selected', 'in-range');
           if (formatDate(date) === formatDate(selectRange[0])) {
             cell.classList.add('is-selected');
           }
@@ -347,8 +411,7 @@ class KDatepicker {
       } else if (selectRange.length === 2) {
         dayCells.forEach(cell => {
           const date = new Date(cell.getAttribute('date'));
-          cell.classList.remove('is-selected');
-          cell.classList.remove('in-range');
+          cell.classList.remove('is-selected', 'in-range');
           if (formatDate(date) === formatDate(selectRange[0]) || formatDate(date) === formatDate(selectRange[1])) {
             cell.classList.add('is-selected');
           }
@@ -368,7 +431,7 @@ class KDatepicker {
      * @param {object} e 事件本身
      */
     function prevHandler(e) {
-      e.stopPropagation();
+      e?.stopPropagation();
       slideChange('prev');
     }
 
@@ -377,7 +440,7 @@ class KDatepicker {
      * @param {object} e 事件本身
      */
     function nextHandler(e) {
-      e.stopPropagation();
+      e?.stopPropagation();
       slideChange('next');
     }
 
@@ -387,9 +450,12 @@ class KDatepicker {
      * @returns
      */
     function dateSelect(e) {
-      e.stopPropagation();
       let isTarget = false;
+      const container = datepickerContainer.querySelector('.c-container');
       const dayCells = datepickerContainer.querySelectorAll('.day-cell:not(.empty):not(.disabled)');
+      if (container.contains(e.target)) {
+        e.stopPropagation();
+      }
       for (const targetElement of dayCells) {
         if (targetElement.contains(e.target) || e.target.closest('.day-cell') === targetElement) {
           isTarget = true;
@@ -401,8 +467,7 @@ class KDatepicker {
         switch (dateSelectCounts) {
           case 0:
             dayCells.forEach(cell => {
-              cell.classList.remove('is-selected');
-              cell.classList.remove('in-range');
+              cell.classList.remove('is-selected', 'in-range');
             });
             dayCell.classList.add('is-selected');
             inputStart.querySelector('input').classList.add('is-selected');
@@ -414,6 +479,8 @@ class KDatepicker {
             selectRange.push(new Date(dayCell.getAttribute('date')));
             if (!oneWayCheckbox.checked) {
               dateSelectCounts++;
+              inputStart.classList.remove('selecting');
+              inputEnd.classList.add('selecting');
             } else {
               confirmBtn.classList.remove('disabled');
             }
@@ -434,6 +501,8 @@ class KDatepicker {
               }
             });
             dateSelectCounts = 0;
+            inputStart.classList.add('selecting');
+            inputEnd.classList.remove('selecting');
             break;
         }
       }
@@ -462,6 +531,9 @@ class KDatepicker {
     function closePopup() {
       const calendarPopup = document.querySelector('.calendar-popup');
       calendarPopup.style.display = 'none';
+      calendarPopup.classList.remove('show');
+      inputStart.classList.remove('selecting');
+      inputEnd.classList.remove('selecting');
     }
 
     /**
@@ -471,8 +543,38 @@ class KDatepicker {
       closePopup();
     }
 
-    inputStart.addEventListener('click', inputClickHandler);
-    inputEnd.addEventListener('click', inputClickHandler);
+    /**
+     * RESIZE
+     */
+    function resizeHandler() {
+      const viewWidth = window.innerWidth;
+      const monthPerView = kDatepicker.options.monthPerView;
+      const calendarPopup = document.querySelector('.calendar-popup');
+      if (viewWidth > 720) {
+        if (monthPerView === 2) {
+          kDatepicker.#changeMonthPerView(datepickerContainer, 2);
+        }
+      } else {
+        if (monthPerView === 2) {
+          kDatepicker.#changeMonthPerView(datepickerContainer, 1);
+        }
+      }
+      kDatepicker.#setPopupPosition(datepickerContainer);
+    }
+
+    const mc = new Hammer(scrollWrapper);
+    mc.on('swipeleft swiperight', function (ev) {
+      switch (ev.type) {
+        case 'swipeleft':
+          nextHandler();
+          break;
+        case 'swiperight':
+          prevHandler();
+          break;
+      }
+    });
+    inputStart.addEventListener('click', inputClickHandler, false);
+    inputEnd.addEventListener('click', inputClickHandler, false);
     resetBtn.addEventListener('click', resetHandler, false);
     oneWayCheckbox.addEventListener('change', oneWayChangeHandler, false);
     previousBtn.addEventListener('click', prevHandler, false);
@@ -480,16 +582,37 @@ class KDatepicker {
     confirmBtn.addEventListener('click', confirmHandler, false);
     datepickerContainer.addEventListener('click', dateSelect, false);
     document.addEventListener('click', clickBlank, false);
+    window.addEventListener('resize', debounce(resizeHandler));
   }
   #update(datepickerContainer, baseDate = new Date()) {
     const kDatepicker = this;
     const dayCells = datepickerContainer.querySelectorAll('.day-cell');
     dayCells.forEach(dayCell => {
       dayCell.textContent = '';
-      dayCell.classList.remove('empty');
-      dayCell.classList.remove('disabled');
+      dayCell.classList.remove('empty', 'disabled');
     });
     kDatepicker.#initialCalendar(datepickerContainer, baseDate);
+  }
+  #changeMonthPerView(datepickerContainer, perView) {
+    const kDatepicker = this;
+    const monthPerView = parseInt(datepickerContainer.getAttribute('month-per-view'));
+    const baseDate = new Date(datepickerContainer.getAttribute('view-date'));
+    const cScrollView = datepickerContainer.querySelector('.c-scroll-view');
+    if (monthPerView === perView) return;
+    cScrollView.removeAttribute('style');
+    cScrollView.querySelectorAll('.c-slide').forEach(slide => {
+      slide.style.transform = 'translate3d(0,0,0)';
+    });
+    if (monthPerView !== perView && perView === 1) {
+      const lastSlide = cScrollView.lastElementChild;
+      datepickerContainer.setAttribute('month-per-view', '1');
+      cScrollView.removeChild(lastSlide);
+      kDatepicker.#update(datepickerContainer, baseDate);
+    } else if (monthPerView !== perView && perView === 2) {
+      datepickerContainer.setAttribute('month-per-view', '2');
+      cScrollView.append(htmlStringToDOM(kDatepicker.#createSlides()));
+      kDatepicker.#update(datepickerContainer, baseDate);
+    }
   }
 }
 

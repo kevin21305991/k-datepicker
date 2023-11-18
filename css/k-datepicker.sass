@@ -2,10 +2,22 @@
   position: relative
   &[month-per-view="1"]
     .calendar-popup
+      .c-container
+        width: 442px
       .c-title
         .item
           &:last-child
             display: none
+      .c-slide
+        &:first-child,&:last-child
+          width: 100%
+  &[month-per-view="2"]
+    .calendar-popup
+      .c-container
+        width: 822px
+      .c-slide
+        &:first-child,&:last-child
+          width: 50%
   
 .daterange-selector
   display: flex
@@ -21,6 +33,11 @@
   &:hover
     border-color: #2275D3
     box-shadow: 0px 4px 5px rgba(0,0,0,0.15)
+  &.selecting
+    color: #fff
+    border-color: #2275D3
+    background-color: #2275D3
+    box-shadow: 0px 4px 5px rgba(0,0,0,0.15)
   &.disabled
     color: #D1D1D1
     background-color: #f6f6f6
@@ -32,6 +49,7 @@
     border: none
     margin: 0
     padding: 0
+    color: inherit
     background-color: transparent
     outline: none
     pointer-events: none
@@ -51,10 +69,31 @@
   display: none
   position: absolute
   top: 100%
-  right: 0
   width: max-content
-  .c-container
+  opacity: 0
+  transition: opacity .3s
+  &.show
+    opacity: 1
+  &.align-left
+    left: 0
+  &.align-right
+    right: 0
+  &.full
+    position: fixed
+    inset: 0
     width: 100%
+    background-color: rgba(#000,.7)
+    padding: 0 15px
+    z-index: 99
+    .flex-box
+      display: flex
+      width: 100%
+      height: 100%
+    .c-container
+      max-width: 822px
+      width: 100%
+      margin: auto
+  .c-container
     padding: 25px 30px
     background-color: #fff
     border: 1px solid #CCCCCC
@@ -139,9 +178,11 @@
   .c-scroll-wrapper
     position: relative
     overflow: hidden
+    cursor: grab
   .c-scroll-view
     display: flex
   .c-slide
+    width: 100%
     padding: 0 15px 15px
     &:first-child
       position: absolute
@@ -151,8 +192,6 @@
       position: absolute
       top: 0
       left: 100%
-  .c-table
-    width: 350px
   .c-weeks,.c-days
     list-style: none
     display: flex
@@ -171,14 +210,23 @@
       font-weight: bold
   .c-days
     >li
-      height: 50px
-      padding: 1px
+      position: relative
+      &::after
+        content: ''
+        display: block
+        width: 100%
+        height: 0
+        padding-bottom: 100%
       .day-cell
+        position: absolute
+        top: 50%
+        left: 50%
+        transform: translate3d(-50%,-50%,0)
         display: flex
         align-items: center
         justify-content: center
-        width: 100%
-        height: 100%
+        width: calc(100% - 2px)
+        height: calc(100% - 2px)
         &:not(.empty):not(.disabled)
           cursor: pointer
         &.is-selected
@@ -252,3 +300,13 @@
       &.disabled
         background-color: #A8A8A8
         cursor: not-allowed
+
+@media screen and (max-width: 720px)
+  .calendar-popup
+    &.full
+      .c-container
+        max-width: 442px
+    .c-container
+      padding: 25px 15px
+    .c-slide
+      padding: 0 5px 15px
