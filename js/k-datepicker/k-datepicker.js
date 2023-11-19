@@ -682,9 +682,11 @@ class KDatepicker {
     mc.on('swipeleft swiperight', function (ev) {
       switch (ev.type) {
         case 'swipeleft':
+          if (nextBtn.classList.contains('hidden')) return;
           nextHandler();
           break;
         case 'swiperight':
+          if (previousBtn.classList.contains('hidden')) return;
           prevHandler();
           break;
       }
