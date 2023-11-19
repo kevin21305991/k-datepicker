@@ -19,7 +19,7 @@
 
 ### 2. Add Swiper HTML Layout
 
-#### ==my-datepicker(line 1)==, ==date-start(line 3)==, ==date-end(line 7)== 這三個 className 可以自定義
+#### my-datepicker(line 1), date-start(line 3), date-end(line 7) 這三個 className 可以自定義
 
 ```html=
 <div class="k-datepicker-container my-datepicker">
