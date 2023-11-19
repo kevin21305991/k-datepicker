@@ -1,6 +1,8 @@
 import SHARED from './shared/shared';
 import { isElementExist, getAllElements, htmlStringToDOM, getTransformX } from './shared/utils.js';
 import '../hammer.min.js';
+import { OverlayScrollbars } from '../OverlayScrollbars/overlayscrollbars.esm.min.js';
+import '../OverlayScrollbars/overlayscrollbars.min.css';
 
 /**
  * 日期格式化
@@ -12,6 +14,16 @@ function formatDate(date) {
   var month = String(date.getMonth() + 1).padStart(2, '0');
   var day = String(date.getDate()).padStart(2, '0');
   return year + '-' + month + '-' + day;
+}
+
+/**
+ * 檢查是否為日期格式
+ * @param {string} str 日期字串
+ * @returns
+ */
+function isValidDateFormat(str) {
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  return dateRegex.test(str);
 }
 
 /**
@@ -51,7 +63,7 @@ class KDatepicker {
         inputStart: '.date-start',
         inputEnd: '.date-end',
         lang: 'zh-TW',
-        minDate: new Date(),
+        dateRange: [formatDate(new Date()), 1],
       },
       EVENTS: {
         init: null,
@@ -74,11 +86,25 @@ class KDatepicker {
   #init() {
     const kDatepicker = this;
     const { elements, options } = kDatepicker;
-    console.log(kDatepicker);
     elements.forEach(element => {
       element.setAttribute('month-per-view', window.innerWidth > 720 ? options.monthPerView : 1);
-      element.setAttribute('view-date', formatDate(new Date()));
       element.classList.add('k-datepicker-initialize');
+      if (typeof options.dateRange === 'object' && options.dateRange.length) {
+        const start = isValidDateFormat(options.dateRange[0]) ? options.dateRange[0] : formatDate(new Date());
+        const end = () => {
+          if (isValidDateFormat(options.dateRange[1])) {
+            return options.dateRange[1];
+          } else if (typeof options.dateRange[1] === 'number') {
+            const end = new Date(start);
+            end.setMonth(end.getMonth() + options.dateRange[1] * 12 - 1);
+            return formatDate(new Date(end));
+          }
+        };
+        const firstDay = new Date(start);
+        firstDay.setDate(1);
+        element.setAttribute('view-date', formatDate(firstDay));
+        element.setAttribute('date-range', `["${start}","${end()}"]`);
+      }
       kDatepicker.#createCalendar(element);
       kDatepicker.emit('init');
     });
@@ -144,7 +170,23 @@ class KDatepicker {
   }
   #createCalendar(datepickerContainer) {
     const kDatepicker = this;
-    const { clear, oneWay, confirm } = kDatepickerLanguage[kDatepicker.options.lang];
+    const { clear, oneWay, confirm, month } = kDatepickerLanguage[kDatepicker.options.lang];
+    const monthsListHandler = () => {
+      let monthsListDOM = '';
+      const minDate = new Date(JSON.parse(datepickerContainer.getAttribute('date-range'))[0]);
+      const maxDate = new Date(JSON.parse(datepickerContainer.getAttribute('date-range'))[1]);
+      function createList(minDate, maxDate) {
+        let current = new Date(minDate);
+        while (current <= maxDate) {
+          const listYear = current.getFullYear();
+          const listMonth = current.getMonth() + 1;
+          monthsListDOM += `<li date="${listYear}-${String(listMonth).padStart(2, '0')}-01">${month[listMonth - 1]} ${listYear}</li>`;
+          current.setMonth(current.getMonth() + 1);
+        }
+      }
+      createList(minDate, maxDate);
+      return monthsListDOM;
+    };
     const monthPerView = window.innerWidth > 720 ? kDatepicker.options.monthPerView : parseInt(datepickerContainer.getAttribute('month-per-view'));
     const calendarDomString = `<div class="calendar-popup">
       <div class="flex-box">
@@ -163,8 +205,24 @@ class KDatepicker {
             </ul>
           </div>
           <div class="c-title">
-            <div class="item current-month"></div>
-            <div class="item next-month"></div>
+            <div class="item">
+              <div class="dropdown-btn">
+                <div class="select-wrapper">
+                  <div class="select-display current-month"></div>
+                  <i class="dropdown-icon"></i>
+                  <div class="dropdown">
+                    <div class="dropdown-scroller">
+                      <ul class="dropdown-list">
+                        ${monthsListHandler()}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="item">
+              <span class="next-month"></span>
+            </div>
           </div>
           <div class="c-body">
             <div class="c-scroll-wrapper">
@@ -173,7 +231,7 @@ class KDatepicker {
               </div>
             </div>
             <div class="c-navigation">
-              <div class="prev-btn"></div>
+              <div class="prev-btn hidden"></div>
               <div class="next-btn"></div>
             </div>
           </div>
@@ -206,6 +264,8 @@ class KDatepicker {
   #initialCalendar(datepickerContainer, baseDate = new Date()) {
     const kDatepicker = this;
     const allSlide = datepickerContainer.querySelectorAll('.c-slide');
+    const previousBtn = datepickerContainer.querySelector('.c-navigation .prev-btn');
+    const nextBtn = datepickerContainer.querySelector('.c-navigation .next-btn');
     const getFirstDay = date => {
       const y = new Date(date).getFullYear();
       const m = new Date(date).getMonth();
@@ -223,6 +283,8 @@ class KDatepicker {
     const currentMonth = new Date(baseDate).getMonth();
     const nextMonth = new Date(new Date(baseDate).setMonth(currentMonth + 1)).getMonth();
     const nextYear = new Date(new Date(baseDate).setMonth(currentMonth + 1)).getFullYear();
+    const minDate = new Date(JSON.parse(datepickerContainer.getAttribute('date-range'))[0]);
+    const maxDate = new Date(JSON.parse(datepickerContainer.getAttribute('date-range'))[1]);
     currentMonthTitle.textContent = `${month[currentMonth]} ${new Date(baseDate).getFullYear()}`;
     nextMonthTitle.textContent = `${month[nextMonth]} ${nextYear}`;
     for (let i = 0; i < allSlide.length; i++) {
@@ -240,9 +302,8 @@ class KDatepicker {
             const date = `${y}-${m}-${day}`;
             dayCells[d].setAttribute('date', date);
             dayCells[d].textContent = dayCount;
-            const minDate = kDatepicker.options.minDate;
             const isSameDay = new Date(date).getFullYear() === minDate.getFullYear() && new Date(date).getMonth() === minDate.getMonth() && new Date(date).getDate() === minDate.getDate();
-            if (new Date(date) < minDate && !isSameDay) {
+            if ((new Date(date) < minDate && !isSameDay) || new Date(date) > maxDate) {
               dayCells[d].classList.add('disabled');
             }
             dayCount++;
@@ -250,6 +311,18 @@ class KDatepicker {
         } else {
           dayCells[d].classList.add('empty');
         }
+      }
+    }
+    if (new Date(baseDate) > minDate) {
+      previousBtn.classList.remove('hidden');
+    } else {
+      previousBtn.classList.add('hidden');
+    }
+    if (new Date(baseDate) <= maxDate) {
+      if (new Date(baseDate).getFullYear() === new Date(maxDate).getFullYear() && currentMonth === new Date(maxDate).getMonth()) {
+        nextBtn.classList.add('hidden');
+      } else {
+        nextBtn.classList.remove('hidden');
       }
     }
   }
@@ -282,6 +355,8 @@ class KDatepicker {
     const inputEnd = datepickerContainer.querySelector(kDatepicker.options.inputEnd);
     const resetBtn = datepickerContainer.querySelector('.reset-btn');
     const oneWayCheckbox = datepickerContainer.querySelector('.one-way input');
+    const dropdownBtn = datepickerContainer.querySelector('.dropdown-btn');
+    const dropdownScroller = dropdownBtn.querySelector('.dropdown-scroller');
     const previousBtn = datepickerContainer.querySelector('.c-navigation .prev-btn');
     const nextBtn = datepickerContainer.querySelector('.c-navigation .next-btn');
     const confirmBtn = datepickerContainer.querySelector('.confirm-btn');
@@ -355,6 +430,63 @@ class KDatepicker {
       kDatepicker.emit('oneWayChange', checked);
     }
 
+    function updateSelectDate() {
+      // 區間內全部亮起
+      const dayCells = datepickerContainer.querySelectorAll('.day-cell');
+      if (selectRange.length === 1) {
+        dayCells.forEach(cell => {
+          const date = new Date(cell.getAttribute('date'));
+          cell.classList.remove('is-selected', 'in-range');
+          if (formatDate(date) === formatDate(selectRange[0])) {
+            cell.classList.add('is-selected');
+          }
+        });
+      } else if (selectRange.length === 2) {
+        dayCells.forEach(cell => {
+          const date = new Date(cell.getAttribute('date'));
+          cell.classList.remove('is-selected', 'in-range');
+          if (formatDate(date) === formatDate(selectRange[0]) || formatDate(date) === formatDate(selectRange[1])) {
+            cell.classList.add('is-selected');
+          }
+          if (date > selectRange[0] && date < selectRange[1]) {
+            cell.classList.add('in-range');
+          }
+        });
+      }
+    }
+
+    function dropdownHandler(e) {
+      let isTarget = false;
+      const dropdownEl = this.querySelector('.dropdown');
+      const dropdownHeight = this.querySelector('.dropdown-scroller').clientHeight;
+      const monthLis = this.querySelectorAll('li');
+      if (this.classList.contains('open')) {
+        // 關閉
+        this.classList.remove('open');
+        dropdownEl.setAttribute('style', '');
+      } else {
+        // 打開
+        this.classList.add('open');
+        dropdownEl.style.cssText = `
+          height: ${dropdownHeight}px;
+          z-index: 2;
+        `;
+      }
+      for (const targetElement of monthLis) {
+        if (targetElement.contains(e.target) || e.target.closest('li') === targetElement) {
+          isTarget = true;
+          break;
+        }
+      }
+      if (isTarget) {
+        const monthLi = e.target.closest('li');
+        const date = monthLi.getAttribute('date');
+        kDatepicker.#update(datepickerContainer, date);
+        updateSelectDate();
+        datepickerContainer.setAttribute('view-date', date);
+      }
+    }
+
     /**
      * 月份切換
      * @param {string} direction 方向 prev/next
@@ -398,28 +530,7 @@ class KDatepicker {
           datepickerContainer.setAttribute('view-date', formatDate(nextMonth));
           break;
       }
-      // 區間內全部亮起
-      const dayCells = datepickerContainer.querySelectorAll('.day-cell');
-      if (selectRange.length === 1) {
-        dayCells.forEach(cell => {
-          const date = new Date(cell.getAttribute('date'));
-          cell.classList.remove('is-selected', 'in-range');
-          if (formatDate(date) === formatDate(selectRange[0])) {
-            cell.classList.add('is-selected');
-          }
-        });
-      } else if (selectRange.length === 2) {
-        dayCells.forEach(cell => {
-          const date = new Date(cell.getAttribute('date'));
-          cell.classList.remove('is-selected', 'in-range');
-          if (formatDate(date) === formatDate(selectRange[0]) || formatDate(date) === formatDate(selectRange[1])) {
-            cell.classList.add('is-selected');
-          }
-          if (date > selectRange[0] && date < selectRange[1]) {
-            cell.classList.add('in-range');
-          }
-        });
-      }
+      updateSelectDate();
       changeTimeout = setTimeout(() => {
         clickable = true;
         kDatepicker.emit('slideChange');
@@ -561,6 +672,11 @@ class KDatepicker {
       }
       kDatepicker.#setPopupPosition(datepickerContainer);
     }
+    OverlayScrollbars(dropdownScroller, {
+      overflow: {
+        x: 'hidden',
+      },
+    });
 
     const mc = new Hammer(scrollWrapper);
     mc.on('swipeleft swiperight', function (ev) {
@@ -577,6 +693,7 @@ class KDatepicker {
     inputEnd.addEventListener('click', inputClickHandler, false);
     resetBtn.addEventListener('click', resetHandler, false);
     oneWayCheckbox.addEventListener('change', oneWayChangeHandler, false);
+    dropdownBtn.addEventListener('click', dropdownHandler, false);
     previousBtn.addEventListener('click', prevHandler, false);
     nextBtn.addEventListener('click', nextHandler, false);
     confirmBtn.addEventListener('click', confirmHandler, false);

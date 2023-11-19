@@ -38,7 +38,7 @@
   </div>
 
   <script src="./js/k-datepicker/language.js"></script>
-  <script src="./js/k-datepicker/k-datepicker-dist.js"></script>
+  <script src="./js/k-datepicker/k-datepicker.min.js"></script>
   <script>
     var datepicker = new KDatepicker('.my-datepicker', {
       on: {
@@ -74,6 +74,7 @@
       monthPerView: 2, // Number 欲顯示月份數量 目前僅有 1,2 兩種
       inputStart: '.date-start', // selector String 起始日期按鈕的 class name
       inputEnd: '.date-end', // selector String 結束日期按鈕的 class name
+      // dateRange: ['2023-11-19','2023-11-22'], // number / array 日期可選擇的範圍 - 如果是數字的話就是當日的 x 年內, 如果是陣列的話就是陣列的範圍
     });
   </script>
 </body>
