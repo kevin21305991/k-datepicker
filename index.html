@@ -47,7 +47,7 @@
           console.log('KDatepicker is initialize');
         },
         oneWayChange(checked){
-          // 單程/雙程切換觸發
+          // 單/雙程切換觸發
           var inputEnd = document.querySelector('.my-datepicker .date-end')
           if(checked){
             inputEnd.classList.add('disabled')
@@ -56,12 +56,12 @@
             inputEnd.classList.remove('disabled')
           }
         },
-        slideChange() {
+        monthChange() {
           // 切換月份時觸發
-          console.log('calendar slide change');
+          console.log('month change');
         },
         confirm(result){
-          // 點擊完成按鈕時觸發
+          // 日期選擇確認後觸發
           if(result.length === 2){
             console.log(`select ${result[0]} to ${result[1]}`);
           }
@@ -70,11 +70,8 @@
           }
         }
       },
-      lang: 'en', // String 目前有三種語言 zh-TW, zh-CN, en
-      monthPerView: 2, // Number 欲顯示月份數量 目前僅有 1,2 兩種
-      inputStart: '.date-start', // selector String 起始日期按鈕的 class name
-      inputEnd: '.date-end', // selector String 結束日期按鈕的 class name
-      // dateRange: ['2023-11-19','2023-11-22'], // number / array 日期可選擇的範圍 - 如果是數字的話就是當日的 x 年內, 如果是陣列的話就是陣列的範圍
+      lang: 'en',
+      monthPerView: 2,
     });
   </script>
 </body>

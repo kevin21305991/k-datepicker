@@ -68,7 +68,7 @@ class KDatepicker {
       EVENTS: {
         init: null,
         oneWayChange: null,
-        slideChange: null,
+        monthChange: null,
         confirm: null,
       },
     };
@@ -492,7 +492,7 @@ class KDatepicker {
      * @param {string} direction 方向 prev/next
      * @returns
      */
-    function slideChange(direction) {
+    function monthChange(direction) {
       if (!clickable) return;
       const monthPerView = parseInt(datepickerContainer.getAttribute('month-per-view'));
       const scrollView = datepickerContainer.querySelector('.c-scroll-view');
@@ -533,7 +533,7 @@ class KDatepicker {
       updateSelectDate();
       changeTimeout = setTimeout(() => {
         clickable = true;
-        kDatepicker.emit('slideChange');
+        kDatepicker.emit('monthChange');
       }, 200);
     }
 
@@ -543,7 +543,7 @@ class KDatepicker {
      */
     function prevHandler(e) {
       e?.stopPropagation();
-      slideChange('prev');
+      monthChange('prev');
     }
 
     /**
@@ -552,7 +552,7 @@ class KDatepicker {
      */
     function nextHandler(e) {
       e?.stopPropagation();
-      slideChange('next');
+      monthChange('next');
     }
 
     /**
