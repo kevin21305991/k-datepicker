@@ -1,6 +1,6 @@
 # KDatepicker - Document
 
-![K-datepicker](https://imgur.com/Dickerl.gif)
+![K-datepicker](https://github.com/kevin21305991/k-datepicker/blob/main/demo.gif)
 
 **[DEMO](https://k-datepicker.vercel.app/)**
 
